@@ -30,40 +30,24 @@ const initializationDatabaseAndServer = async () => {
 };
 initializationDatabaseAndServer();
 
-// Checking Validity Through Midware Functions
-const isValidMid = (request, response, next) => {
-  const { category, priority, status, dueDate } = request.query;
-  const dateValidation = isValid(dueDate);
-  const priorityValidation = ["HIGH", "MEDIUM", "LOW"];
-  const statusValidation = ["TO DO", "IN PROGRESS", "DONE"];
-  const categoryValidation = ["WORK", "HOME", "LEARNING"];
-  const checkStatus = statusValidation.includes(status);
-  const checkCategory = categoryValidation.includes(category);
-  const checkPriority = priorityValidation.includes(priority);
-  if (dateValidation !== true) {
-    response.status(400);
-    response.send("Invalid Due Date");
-  } else if (checkStatus !== true) {
-    response.status(400);
-    response.send("Invalid Todo Status");
-  } else if (checkCategory !== true) {
-    response.status(400);
-    response.send("Invalid Todo Category");
-  } else if (checkPriority !== true) {
-    response.status(400);
-    response.send("Invalid Todo Priority");
-  } else {
-    next();
-  }
+// API 1 Formatting
+const formattingTodo = (dbObject) => {
+  return {
+    id: dbObject.id,
+    todo: dbObject.todo,
+    category: dbObject.category,
+    priority: dbObject.priority,
+    status: dbObject.status,
+    dueDate: dbObject.due_date,
+  };
 };
 
-// API 1
+// Filtering
 const hasAllProperty = (requestQuery) => {
   return (
     requestQuery.category !== undefined &&
     requestQuery.priority !== undefined &&
-    requestQuery.status !== undefined &&
-    requestQuery.due_date !== undefined
+    requestQuery.status !== undefined
   );
 };
 
@@ -97,10 +81,22 @@ const hasCategoryAndPriority = (requestQuery) => {
   );
 };
 
-app.get("/todos/", isValidMid, async (request, response) => {
+// // Checking Validity For Category Priority and Status
+// const isValidData = (request, response, next) => {
+//   const { category, priority, status } = request.query;
+//   const priorityValidation = ["HIGH", "MEDIUM", "LOW"];
+//   const statusValidation = ["TO DO", "IN PROGRESS", "DONE"];
+//   const categoryValidation = ["WORK", "HOME", "LEARNING"];
+//   const checkStatus = statusValidation.includes(status);
+//   const checkCategory = categoryValidation.includes(category);
+//   const checkPriority = priorityValidation.includes(priority);
+// };
+
+// API 1
+app.get("/todos/", async (request, response) => {
   let data = null;
   let getTodoQuery = "";
-  const { search_q = "", category, priority, status, due_date } = request.query;
+  const { search_q = "", category, priority, status } = request.query;
 
   switch (true) {
     case hasAllProperty(request.query):
@@ -110,8 +106,7 @@ app.get("/todos/", isValidMid, async (request, response) => {
           WHERE todo LIKE '%${search_q}%' AND 
                 category = '${category}' AND
                 priority = '${priority}' AND
-                status = '${status}' AND 
-                due_date = '${due_date}';`;
+                status = '${status}';`;
       break;
     case hasOnlystatus(request.query):
       getTodoQuery = `
@@ -166,5 +161,93 @@ app.get("/todos/", isValidMid, async (request, response) => {
       break;
   }
   data = await database.all(getTodoQuery);
-  response.send(data);
+  response.send(data.map((item) => formattingTodo(item)));
+});
+
+// API 2
+app.get("/todos/:todoId/", async (request, response) => {
+  const { todoId } = request.params;
+  const queryToGetPerId = `
+  SELECT *
+  FROM todo
+  WHERE id = '${todoId}';`;
+  const gettingAsPerId = await database.get(queryToGetPerId);
+  response.send(formattingTodo(gettingAsPerId));
+});
+
+// API 3
+app.get("/agenda/", async (request, response) => {
+  const { date } = request.query;
+  console.log(date);
+  const queryToGetDataTillDate = `
+    SELECT * FROM todo WHERE due_date = '${date}';`;
+  const dataTillDueDate = await database.all(queryToGetDataTillDate);
+  response.send(dataTillDueDate.map((item) => formattingTodo(item)));
+});
+
+// API 4
+app.post("/todos/", async (request, response) => {
+  const { id, todo, priority, status, category, dueDate } = request.body;
+  const queryToPostTodoItem = `
+    INSERT INTO todo(id, todo, priority, status, category, due_date)
+    VALUES ('${id}', '${todo}','${priority}','${status}','${category}','${dueDate}');`;
+  await database.run(queryToPostTodoItem);
+  response.send("Todo Successfully Added");
+});
+
+// API 5
+app.put("/todos/:todoId/", async (request, response) => {
+  let updateValue = "";
+  const requestBody = request.body;
+  switch (true) {
+    case requestBody.status !== undefined:
+      updateValue = "Status";
+      break;
+    case requestBody.todo !== undefined:
+      updateValue = "Todo";
+      break;
+    case requestBody.priority !== undefined:
+      updateValue = "Priority";
+      break;
+    case requestBody.category !== undefined:
+      updateValue = "Category";
+      break;
+    case requestBody.dueDate !== undefined:
+      updateValue = "Due Date";
+      break;
+  }
+  const { todoId } = request.params;
+  const queryToGetPreviousValues = `
+        SELECT * 
+        FROM todo 
+        WHERE id = '${todoId}';`;
+
+  const previousTodo = await database.get(queryToGetPreviousValues);
+  const {
+    todo = previousTodo.todo,
+    priority = previousTodo.priority,
+    status = previousTodo.status,
+    category = previousTodo.category,
+    dueDate = previousTodo.due_date,
+  } = request.body;
+  const queryToUpdate = `
+    UPDATE todo
+    SET
+        todo = '${todo}',
+        priority = '${priority}',
+        status = '${status}',
+        category = '${category}',
+        due_date = '${dueDate}';`;
+  await database.run(queryToUpdate);
+  response.send(`${updateValue} Updated`);
+});
+
+// API 6
+app.delete("/todos/:todoId/", async (request, response) => {
+  const { todoId } = request.params;
+  const queryToDelete = `
+  DELETE FROM todo
+  WHERE id = '${todoId}'`;
+  await database.run(queryToDelete);
+  response.send("Todo Deleted");
 });

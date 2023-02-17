@@ -1,2 +1,7 @@
 ### API 1 FILTERS
 GET http://localhost:3000/todos/
+
+### API 1.1
+GET http://localhost:3000/todos/?status=TO%20DO 
+
+### API 2

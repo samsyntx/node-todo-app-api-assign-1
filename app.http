@@ -8,7 +8,7 @@ GET http://localhost:3000/todos/?status=TO%20DO
 GET http://localhost:3000/todos/2/
 
 ### API 3  /agenda/?date=2021-12-12
-GET http://localhost:3000/agenda/?date=2020-09-22
+GET http://localhost:3000/agenda/?date=2021-02-22
 
 ### API 4 
 POST http://localhost:3000/todos/

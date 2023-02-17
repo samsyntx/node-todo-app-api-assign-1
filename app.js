@@ -30,6 +30,33 @@ const initializationDatabaseAndServer = async () => {
 };
 initializationDatabaseAndServer();
 
+// Checking Validity Through Midware Functions
+const isValidMid = (request, response, next) => {
+  const { category, priority, status, dueDate } = request.query;
+  const dateValidation = isValid(dueDate);
+  const priorityValidation = ["HIGH", "MEDIUM", "LOW"];
+  const statusValidation = ["TO DO", "IN PROGRESS", "DONE"];
+  const categoryValidation = ["WORK", "HOME", "LEARNING"];
+  const checkStatus = statusValidation.includes(status);
+  const checkCategory = categoryValidation.includes(category);
+  const checkPriority = priorityValidation.includes(priority);
+  if (dateValidation !== true) {
+    response.status(400);
+    response.send("Invalid Due Date");
+  } else if (checkStatus !== true) {
+    response.status(400);
+    response.send("Invalid Todo Status");
+  } else if (checkCategory !== true) {
+    response.status(400);
+    response.send("Invalid Todo Category");
+  } else if (checkPriority !== true) {
+    response.status(400);
+    response.send("Invalid Todo Priority");
+  } else {
+    next();
+  }
+};
+
 // API 1
 const hasAllProperty = (requestQuery) => {
   return (
@@ -70,7 +97,7 @@ const hasCategoryAndPriority = (requestQuery) => {
   );
 };
 
-app.get("/todos/", async (request, response) => {
+app.get("/todos/", isValidMid, async (request, response) => {
   let data = null;
   let getTodoQuery = "";
   const { search_q = "", category, priority, status, due_date } = request.query;

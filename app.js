@@ -3,6 +3,7 @@ const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
 const path = require("path");
 var isDateValid = require("date-fns/isValid");
+var format = require("date-fns/format");
 
 // Define The Path for Database
 const databasePath = path.join(__dirname, "todoApplication.db");
@@ -230,15 +231,21 @@ app.get("/todos/:todoId/", async (request, response) => {
 // API 3
 app.get("/agenda/", async (request, response) => {
   const { date } = request.query;
-  const DateFormat = isDateValid(new Date(date), "yyyy-MM-dd");
-  if (DateFormat === true) {
-    const queryToGetDataTillDate = `
-    SELECT * FROM todo WHERE due_date = '${date}';`;
-    const dataTillDueDate = await database.all(queryToGetDataTillDate);
-    response.send(dataTillDueDate.map((item) => formattingTodo(item)));
-  } else {
+  if (date === undefined) {
     response.status(400);
     response.send("Invalid Due Date");
+  } else {
+    const DateValidation = isDateValid(new Date(date));
+    if (DateValidation === true) {
+      const formatDate = format(new Date(date), "yyyy-MM-dd");
+      const queryToGetDataTillDate = `
+    SELECT * FROM todo WHERE due_date = '${formatDate}';`;
+      const dataTillDueDate = await database.all(queryToGetDataTillDate);
+      response.send(dataTillDueDate.map((item) => formattingTodo(item)));
+    } else {
+      response.status(400);
+      response.send("Invalid Due Date");
+    }
   }
 });
 
@@ -277,11 +284,12 @@ const allBodyDataValidate = (request, response, next) => {
 // API 4
 app.post("/todos/", allBodyDataValidate, async (request, response) => {
   const { id, todo, priority, status, category, dueDate } = request.body;
+  const formatDate = format(new Date(dueDate), "yyyy-MM-dd");
   const queryToPostTodoItem = `
     INSERT INTO 
         todo(id, todo, priority, status, category, due_date)
     VALUES 
-        ('${id}', '${todo}','${priority}','${status}','${category}','${dueDate}');`;
+        ('${id}', '${todo}','${priority}','${status}','${category}','${formatDate}');`;
   await database.run(queryToPostTodoItem);
   response.send("Todo Successfully Added");
 });

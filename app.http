@@ -5,10 +5,10 @@ GET http://localhost:3000/todos/
 GET http://localhost:3000/todos/?status=TO%20DO 
 
 ### API 2 /todos/:todoId/
-GET http://localhost:3000/todos/2/
+GET http://localhost:3000/todos/6/
 
 ### API 3  /agenda/?date=2021-12-12
-GET http://localhost:3000/agenda/?date=2021-02-22
+GET http://localhost:3000/agenda/?date=2021-01-20
 
 ### API 4 
 POST http://localhost:3000/todos/
@@ -20,7 +20,7 @@ Content-Type: application/json
   "priority": "LOW",
   "status": "TO DO",
   "category": "HOME",
-  "dueDate": "2021-02-22"
+  "dueDate": "2021-08-21"
 }
 
 ### API 5 /todos/:todoId/
@@ -28,7 +28,7 @@ PUT http://localhost:3000/todos/2/
 Content-Type: application/json
 
 {
-  "dueDate": "2021-01-20"
+  "todo": "Learn HTML"
 }
 
 ### API 6 /todos/:todoId/

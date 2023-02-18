@@ -30,7 +30,7 @@ const initializationDatabaseAndServer = async () => {
 };
 initializationDatabaseAndServer();
 
-// Checking Validity For Category Priority and Status
+// has Request Query API 1 Validation
 const hasStatusValidate = (requestedQue) => {
   return requestedQue.status !== undefined;
 };
@@ -40,11 +40,11 @@ const hasCategoryValidate = (requestedQue) => {
 const hasPriorityValidate = (requestedQue) => {
   return requestedQue.priority !== undefined;
 };
-const hasDateValidity = (requestedQue) => {
-  return requestedQue.date !== undefined;
+const hasDueDateValidity = (requestQuery) => {
+  return requestQuery.dueDate !== undefined;
 };
-const isValidData = (request, response, next) => {
-  const { category, priority, status, date } = request.query;
+const SomeQueryValidation = (request, response, next) => {
+  const { priority, status, category, dueDate } = request.query;
   const priorityValidation = ["HIGH", "MEDIUM", "LOW"];
   const statusValidation = ["TO DO", "IN PROGRESS", "DONE"];
   const categoryValidation = ["WORK", "HOME", "LEARNING"];
@@ -56,37 +56,40 @@ const isValidData = (request, response, next) => {
     case hasStatusValidate(request.query):
       if (checkStatus === true) {
         next();
-        break;
       } else {
         response.status(400);
         response.send("Invalid Todo Status");
       }
+      break;
+      break;
     case hasCategoryValidate(request.query):
       if (checkCategory === true) {
         next();
-        break;
       } else {
         response.status(400);
-        response.send("Invalid Todo Status");
+        response.send("Invalid Todo Category");
       }
+      break;
     case hasPriorityValidate(request.query):
       if (checkPriority === true) {
         next();
-        break;
       } else {
         response.status(400);
-        response.send("Invalid Todo Status");
+        response.send("Invalid Todo Priority");
       }
-    case hasDateValidity(request.query):
-      if (isDateValid(date, "yyyy-MM-dd") === true) {
+      break;
+    case hasDueDateValidity(request.query):
+      const DateFormatForDueDate = isDateValid(new Date(dueDate), "yyyy-MM-dd");
+      if (DateFormatForDueDate === true) {
         next();
-        break;
       } else {
         response.status(400);
         response.send("Invalid Due Date");
       }
+      break;
     default:
       next();
+      break;
   }
 };
 
@@ -95,9 +98,9 @@ const formattingTodo = (dbObject) => {
   return {
     id: dbObject.id,
     todo: dbObject.todo,
-    category: dbObject.category,
     priority: dbObject.priority,
     status: dbObject.status,
+    category: dbObject.category,
     dueDate: dbObject.due_date,
   };
 };
@@ -142,7 +145,7 @@ const hasCategoryAndPriority = (requestQuery) => {
 };
 
 // API 1
-app.get("/todos/", isValidData, async (request, response) => {
+app.get("/todos/", SomeQueryValidation, async (request, response) => {
   let data = null;
   let getTodoQuery = "";
   const { search_q = "", category, priority, status } = request.query;
@@ -214,7 +217,7 @@ app.get("/todos/", isValidData, async (request, response) => {
 });
 
 // API 2
-app.get("/todos/:todoId/", isValidData, async (request, response) => {
+app.get("/todos/:todoId/", async (request, response) => {
   const { todoId } = request.params;
   const queryToGetPerId = `
   SELECT *
@@ -225,27 +228,116 @@ app.get("/todos/:todoId/", isValidData, async (request, response) => {
 });
 
 // API 3
-app.get("/agenda/", isValidData, async (request, response) => {
+app.get("/agenda/", async (request, response) => {
   const { date } = request.query;
-  console.log(date);
-  const queryToGetDataTillDate = `
+  const DateFormat = isDateValid(new Date(date), "yyyy-MM-dd");
+  if (DateFormat === true) {
+    const queryToGetDataTillDate = `
     SELECT * FROM todo WHERE due_date = '${date}';`;
-  const dataTillDueDate = await database.all(queryToGetDataTillDate);
-  response.send(dataTillDueDate.map((item) => formattingTodo(item)));
+    const dataTillDueDate = await database.all(queryToGetDataTillDate);
+    response.send(dataTillDueDate.map((item) => formattingTodo(item)));
+  } else {
+    response.status(400);
+    response.send("Invalid Due Date");
+  }
 });
 
+// API 4 All Body Data validation
+const allBodyDataValidate = (request, response, next) => {
+  const { id, todo, priority, status, category, dueDate } = request.body;
+  const priorityValidation = ["HIGH", "MEDIUM", "LOW"];
+  const statusValidation = ["TO DO", "IN PROGRESS", "DONE"];
+  const categoryValidation = ["WORK", "HOME", "LEARNING"];
+  const checkStatus = statusValidation.includes(status);
+  const checkCategory = categoryValidation.includes(category);
+  const checkPriority = priorityValidation.includes(priority);
+  const DateFormat = isDateValid(new Date(dueDate), "yyyy-MM-dd");
+  if (checkStatus === true) {
+    if (checkCategory === true) {
+      if (checkPriority === true) {
+        if (DateFormat === true) {
+          next();
+        } else {
+          response.status(400);
+          response.send("Invalid Due Date");
+        }
+      } else {
+        response.status(400);
+        response.send("Invalid Todo Priority");
+      }
+    } else {
+      response.status(400);
+      response.send("Invalid Todo Category");
+    }
+  } else {
+    response.status(400);
+    response.send("Invalid Todo Status");
+  }
+};
 // API 4
-app.post("/todos/", isValidData, async (request, response) => {
+app.post("/todos/", allBodyDataValidate, async (request, response) => {
   const { id, todo, priority, status, category, dueDate } = request.body;
   const queryToPostTodoItem = `
-    INSERT INTO todo(id, todo, priority, status, category, due_date)
-    VALUES ('${id}', '${todo}','${priority}','${status}','${category}','${dueDate}');`;
+    INSERT INTO 
+        todo(id, todo, priority, status, category, due_date)
+    VALUES 
+        ('${id}', '${todo}','${priority}','${status}','${category}','${dueDate}');`;
   await database.run(queryToPostTodoItem);
   response.send("Todo Successfully Added");
 });
 
+// API 5 Validation
+const validationForUpdate = (request, response, next) => {
+  const { priority, status, category, dueDate } = request.body;
+  const priorityValidation = ["HIGH", "MEDIUM", "LOW"];
+  const statusValidation = ["TO DO", "IN PROGRESS", "DONE"];
+  const categoryValidation = ["WORK", "HOME", "LEARNING"];
+  const checkStatus = statusValidation.includes(status);
+  const checkCategory = categoryValidation.includes(category);
+  const checkPriority = priorityValidation.includes(priority);
+
+  switch (true) {
+    case hasStatusValidate(request.body):
+      if (checkStatus === true) {
+        next();
+      } else {
+        response.status(400);
+        response.send("Invalid Todo Status");
+      }
+      break;
+      break;
+    case hasCategoryValidate(request.body):
+      if (checkCategory === true) {
+        next();
+      } else {
+        response.status(400);
+        response.send("Invalid Todo Category");
+      }
+      break;
+    case hasPriorityValidate(request.body):
+      if (checkPriority === true) {
+        next();
+      } else {
+        response.status(400);
+        response.send("Invalid Todo Priority");
+      }
+      break;
+    case hasDueDateValidity(request.body):
+      const DateFormatForDueDate = isDateValid(new Date(dueDate), "yyyy-MM-dd");
+      if (DateFormatForDueDate === true) {
+        next();
+      } else {
+        response.status(400);
+        response.send("Invalid Due Date");
+      }
+      break;
+    default:
+      next();
+      break;
+  }
+};
 // API 5
-app.put("/todos/:todoId/", isValidData, async (request, response) => {
+app.put("/todos/:todoId/", validationForUpdate, async (request, response) => {
   let updateValue = "";
   const requestBody = request.body;
   switch (true) {
@@ -292,7 +384,7 @@ app.put("/todos/:todoId/", isValidData, async (request, response) => {
 });
 
 // API 6
-app.delete("/todos/:todoId/", isValidData, async (request, response) => {
+app.delete("/todos/:todoId/", async (request, response) => {
   const { todoId } = request.params;
   const queryToDelete = `
   DELETE FROM todo
